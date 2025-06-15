@@ -1,0 +1,11 @@
+{
+  "$schema": "https://github.com/toeverything/affine/releases/latest/download/config.schema.json",
+  "copilot": {
+    "enabled": true,
+    "providers.openai": {
+      "apiKey": "ollama",
+      "baseUrl": "http://ollama-llm:11434/v1",
+      "model":  "llama3.2:3b"
+    }
+  }
+}
