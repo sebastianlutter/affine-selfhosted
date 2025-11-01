@@ -2,10 +2,24 @@
   "$schema": "https://github.com/toeverything/affine/releases/latest/download/config.schema.json",
   "copilot": {
     "enabled": true,
+    "scenarios": {
+      "override_enabled": true,
+      "scenarios": {
+        "audio_transcribing": "whisper-small", 
+        "chat": "llama3.2:3b", 
+        "embedding": "dengcao/Qwen3-Embedding-4B:Q5_K_M", 
+        "image": "unsplash-photo", 
+        "rerank": "dengcao/Qwen3-Reranker-4B:Q5_K_M", 
+        "coding": "codellama:7b", 
+        "complex_text_generation": "llama3.2:3b", 
+        "quick_decision_making": "llama3.2:3b", 
+        "quick_text_generation": "llama3.2:3b", 
+        "polish_and_summarize": "llama3.2:3b"
+      }
+    },
     "providers.openai": {
       "apiKey": "ollama",
-      "baseUrl": "http://ollama-llm:11434/v1",
-      "model":  "llama3.2:3b"
+      "baseUrl": "http://ollama-llm:11434/v1"
     }
   }
 }
