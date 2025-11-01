@@ -1,0 +1,29 @@
+model_list:
+  # Primary chat / summarize model (CPU friendly; 3B)
+  - model_name: gpt-4o-mini-local
+    litellm_params:
+      # "ollama/<model>" tells LiteLLM to call Ollama
+      model: ollama/llama3.2:3b-instruct
+      api_base: http://ollama-llm:11434
+
+  # Optional slightly bigger chat model (≤8B CPU)
+  - model_name: gpt-4o-mini-8b-local
+    litellm_params:
+      model: ollama/llama3.1:8b-instruct
+      api_base: http://ollama-llm:11434
+
+  # Coding (kept ≤7B)
+  - model_name: gpt-coder-mini-local
+    litellm_params:
+      model: ollama/codellama:7b-instruct
+      api_base: http://ollama-llm:11434
+
+  # Embeddings (small, CPU)
+  - model_name: text-embedding-3-small-local
+    litellm_params:
+      # pick ONE of these you actually pull with Ollama:
+      #   - ollama/snowflake-arctic-embed:latest   (≈335M, very light)
+      #   - ollama/nomic-embed-text:latest         (popular, good quality)
+      model: ollama/snowflake-arctic-embed:latest
+      api_base: http://ollama-llm:11434
+

@@ -2,24 +2,28 @@
   "$schema": "https://github.com/toeverything/affine/releases/latest/download/config.schema.json",
   "copilot": {
     "enabled": true,
+
     "scenarios": {
       "override_enabled": true,
       "scenarios": {
-        "audio_transcribing": "whisper-small", 
-        "chat": "llama3.2:3b", 
-        "embedding": "dengcao/Qwen3-Embedding-4B:Q5_K_M", 
-        "image": "unsplash-photo", 
-        "rerank": "dengcao/Qwen3-Reranker-4B:Q5_K_M", 
-        "coding": "codellama:7b", 
-        "complex_text_generation": "llama3.2:3b", 
-        "quick_decision_making": "llama3.2:3b", 
-        "quick_text_generation": "llama3.2:3b", 
-        "polish_and_summarize": "llama3.2:3b"
+        "audio_transcribing": "disabled",
+        "image": "unsplash-photo",
+
+        "chat": "gpt-4o-mini-local",
+        "complex_text_generation": "gpt-4o-mini-local",
+        "quick_text_generation": "gpt-4o-mini-local",
+        "quick_decision_making": "gpt-4o-mini-local",
+        "polish_and_summarize": "gpt-4o-mini-local",
+        "coding": "gpt-coder-mini-local",
+
+        "embedding": "text-embedding-3-small-local",
+        "rerank": "gpt-4o-mini-local"
       }
     },
+
     "providers.openai": {
-      "apiKey": "ollama",
-      "baseUrl": "http://ollama-llm:11434/v1"
+      "apiKey": "sk-local-anything",
+      "baseUrl": "http://litellm:4000/v1"
     }
   }
 }

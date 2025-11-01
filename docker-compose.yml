@@ -18,7 +18,7 @@ services:
     entrypoint: ["/usr/bin/bash", "/entrypoint.sh"]
 
   affine:
-    image: ghcr.io/toeverything/affine-graphql:${AFFINE_REVISION:-stable}
+    image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-stable}
     container_name: affine_server
     ports:
       - '${PORT:-3010}:3010'
@@ -29,6 +29,8 @@ services:
         condition: service_healthy
       affine_migration:
         condition: service_completed_successfully
+      litellm:
+        condition: service_healthy
     volumes:
       # custom configurations
       - ${UPLOAD_LOCATION}:/root/.affine/storage
@@ -42,7 +44,7 @@ services:
     restart: unless-stopped
 
   affine_migration:
-    image: ghcr.io/toeverything/affine-graphql:${AFFINE_REVISION:-stable}
+    image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-stable}
     container_name: affine_migration_job
     volumes:
       # custom configurations
@@ -90,4 +92,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  litellm:
+    image: ghcr.io/berriai/litellm:latest
+    container_name: litellm_proxy
+    ports:
+      - "4000:4000"
+    depends_on:
+      ollama-llm:
+        condition: service_healthy
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+    command: ["--host", "0.0.0.0", "--port", "4000", "--config", "/app/config.yaml"]
+    environment:
+      - LITELLM_LOG=info
     restart: unless-stopped
