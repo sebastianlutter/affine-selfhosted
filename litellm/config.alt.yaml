@@ -1,0 +1,31 @@
+# litellm/config.yaml
+model_list:
+  - model_name: llama3.2:3b
+    litellm_params:
+      model: ollama/llama3.2:3b
+      api_base: http://ollama-llm:11434
+      api_key: ollama
+
+  - model_name: codellama:7b
+    litellm_params:
+      model: ollama/codellama:7b
+      api_base: http://ollama-llm:11434
+      api_key: ollama
+
+  - model_name: whisper-small
+    litellm_params:
+      model: ollama/whisper-small
+      api_base: http://ollama-llm:11434
+      api_key: ollama
+
+  - model_name: dengcao/Qwen3-Embedding-4B:Q5_K_M
+    litellm_params:
+      model: ollama/dengcao/Qwen3-Embedding-4B:Q5_K_M
+      api_base: http://ollama-llm:11434
+      api_key: ollama
+
+  - model_name: dengcao/Qwen3-Reranker-4B:Q5_K_M
+    litellm_params:
+      model: ollama/dengcao/Qwen3-Reranker-4B:Q5_K_M
+      api_base: http://ollama-llm:11434
+      api_key: ollama
