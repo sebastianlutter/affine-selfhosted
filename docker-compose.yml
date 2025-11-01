@@ -16,6 +16,12 @@ services:
      - OLLAMA_MODELS=/root/.ollama/models
      - OLLAMA_MODEL_DL=${OLLAMA_MODELS}
     entrypoint: ["/usr/bin/bash", "/entrypoint.sh"]
+    healthcheck:
+      test: "bash -c 'cat < /dev/null > /dev/tcp/localhost/11434'"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   affine:
     image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-stable}
@@ -75,7 +81,6 @@ services:
 
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: affine_postgres
     volumes:
       - ${DB_DATA_LOCATION}:/var/lib/postgresql/data
     environment:
@@ -95,7 +100,7 @@ services:
     restart: unless-stopped
 
   litellm:
-    image: ghcr.io/berriai/litellm:latest
+    image: ghcr.io/berriai/litellm:main-stable
     container_name: litellm_proxy
     ports:
       - "4000:4000"
@@ -104,7 +109,13 @@ services:
         condition: service_healthy
     volumes:
       - ./litellm/config.yaml:/app/config.yaml:ro
-    command: ["--host", "0.0.0.0", "--port", "4000", "--config", "/app/config.yaml"]
+    command: ["--config", "/app/config.yaml"]
     environment:
       - LITELLM_LOG=info
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 http://localhost:4000/health/liveliness || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
