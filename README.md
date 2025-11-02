@@ -6,7 +6,9 @@ Self-hosted [AFFiNE](https://affine.pro) workspace with custom AI configuration 
 
 ## Overview
 
-This setup enables AFFiNE to use local AI models (running on Ollama) by routing requests through LiteLLM, which acts as an OpenAI-compatible API proxy. AFFiNE makes requests using familiar OpenAI model names (like [`gpt-4o-mini`](config/config.json:12)), which LiteLLM translates to local Ollama models.
+This setup enables AFFiNE to use local AI models (running on Ollama) by routing requests through LiteLLM, which acts as an OpenAI-compatible API proxy. AFFiNE makes requests using familiar OpenAI model names (like [`gpt-4o-mini`](config/config.json:12)), which LiteLLM translates to local Ollama models. Affine has a whitelists in the [providers/ files](https://github.com/toeverything/AFFiNE/blob/canary/packages/backend/server/src/plugins/copilot/providers/). Use this as alias names.
+
+Even when using only whitelist names it tries nevertheless to contact the gemini2.5-flash model. Therefore I added model aliase in litellm config as well.
 
 ### Architecture
 
