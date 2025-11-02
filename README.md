@@ -95,7 +95,76 @@ Edit [`litellm/config.yaml`](litellm/config.yaml:1) to change model mappings or 
 
 Edit [`config/config.json`](config/config.json:1) to modify which model aliases are used for specific scenarios.
 
+## Troubleshooting
+
+Check if all models are ready to be used from litellm
+```
+affine-selfhosted$ curl -s http://localhost:4000/v1/models | jq .
+{
+  "data": [
+    {
+      "id": "gpt-4o-mini",
+      "object": "model",
+      "created": 1677610602,
+      "owned_by": "openai"
+    },
+    {
+      "id": "gpt-4.1-mini",
+      "object": "model",
+      "created": 1677610602,
+      "owned_by": "openai"
+    },
+    {
+      "id": "gpt-4o",
+      "object": "model",
+      "created": 1677610602,
+      "owned_by": "openai"
+    },
+    {
+      "id": "text-embedding-3-small",
+      "object": "model",
+      "created": 1677610602,
+      "owned_by": "openai"
+    },
+    {
+      "id": "gemini-2.5-flash",
+      "object": "model",
+      "created": 1677610602,
+      "owned_by": "openai"
+    },
+    {
+      "id": "gemini-2.5-pro",
+      "object": "model",
+      "created": 1677610602,
+      "owned_by": "openai"
+    },
+    {
+      "id": "claude-sonnet-4-5@20250929",
+      "object": "model",
+      "created": 1677610602,
+      "owned_by": "openai"
+    }
+  ],
+  "object": "list"
+}
+```
+
+Show the list of models in ollama docker:
+```
+affine-selfhosted$ docker exec -it $(docker ps --format "{{.ID}}" --filter "name=ollama-llm") ollama list
+NAME                                     ID              SIZE      MODIFIED      
+snowflake-arctic-embed:latest            21ab8b9b0545    669 MB    5 minutes ago    
+mervinpraison/llama3.2-3B-instruct:8b    c3e2903407f0    6.4 GB    5 minutes ago    
+codellama:7b-instruct                    8fdf8f752f6e    3.8 GB    5 minutes ago        
+llama3.2:3b                              a80c4f17acd5    2.0 GB    17 hours ago     
+nomic-embed-text:latest                  0a109f422b47    274 MB    45 hours ago
+```
+
+
+
 ## References
 
 - [Original AFFiNE self-hosted setup guide](https://github.com/toeverything/AFFiNE/issues/11691)
 - [AI configuration discussion](https://github.com/toeverything/AFFiNE/discussions/11722#discussioncomment-13379127)
+
+
