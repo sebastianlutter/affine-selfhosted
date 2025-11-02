@@ -9,21 +9,21 @@
         "audio_transcribing": "disabled",
         "image": "unsplash-photo",
 
-        "chat": "gpt-4o-mini-local",
-        "complex_text_generation": "gpt-4o-mini-local",
-        "quick_text_generation": "gpt-4o-mini-local",
-        "quick_decision_making": "gpt-4o-mini-local",
-        "polish_and_summarize": "gpt-4o-mini-local",
-        "coding": "gpt-coder-mini-local",
+        "chat": "gpt-4o-mini",
+        "complex_text_generation": "gpt-4o-mini",
+        "quick_text_generation": "gpt-4o-mini",
+        "quick_decision_making": "gpt-4o-mini",
+        "polish_and_summarize": "gpt-4o-mini",
+        "coding": "gpt-4.1-mini",
 
-        "embedding": "text-embedding-3-small-local",
-        "rerank": "gpt-4o-mini-local"
+        "embedding": "text-embedding-3-small",
+        "rerank": "gpt-4o-mini"
       }
     },
 
     "providers.openai": {
       "apiKey": "sk-local-anything",
-      "baseUrl": "http://litellm:4000/v1"
+      "baseURL": "http://litellm:4000/v1"
     }
   }
 }

@@ -1,29 +1,43 @@
+litellm_settings:
+  drop_params: true
 model_list:
-  # Primary chat / summarize model (CPU friendly; 3B)
-  - model_name: gpt-4o-mini-local
+  # --- Your intended OpenAI-compatible IDs ---
+  - model_name: gpt-4o-mini
     litellm_params:
-      # "ollama/<model>" tells LiteLLM to call Ollama
-      model: ollama/llama3.2:3b-instruct
+      model: mervinpraison/llama3.2-3B-instruct:8b
       api_base: http://ollama-llm:11434
 
-  # Optional slightly bigger chat model (≤8B CPU)
-  - model_name: gpt-4o-mini-8b-local
-    litellm_params:
-      model: ollama/llama3.1:8b-instruct
-      api_base: http://ollama-llm:11434
-
-  # Coding (kept ≤7B)
-  - model_name: gpt-coder-mini-local
+  - model_name: gpt-4.1-mini
     litellm_params:
       model: ollama/codellama:7b-instruct
       api_base: http://ollama-llm:11434
 
-  # Embeddings (small, CPU)
-  - model_name: text-embedding-3-small-local
+  - model_name: gpt-4o
     litellm_params:
-      # pick ONE of these you actually pull with Ollama:
-      #   - ollama/snowflake-arctic-embed:latest   (≈335M, very light)
-      #   - ollama/nomic-embed-text:latest         (popular, good quality)
+      model: mervinpraison/llama3.2-3B-instruct:8b
+      api_base: http://ollama-llm:11434
+
+  - model_name: text-embedding-3-small
+    litellm_params:
+      # choose one you actually pulled
+      # model: ollama/nomic-embed-text:latest
       model: ollama/snowflake-arctic-embed:latest
       api_base: http://ollama-llm:11434
 
+  # --- Aliases to catch legacy/default scenario IDs still in DB ---
+  # Gemini aliases -> route to your small fast chat model
+  - model_name: gemini-2.5-flash
+    litellm_params:
+      model: mervinpraison/llama3.2-3B-instruct:8b
+      api_base: http://ollama-llm:11434
+
+  - model_name: gemini-2.5-pro
+    litellm_params:
+      model: mervinpraison/llama3.2-3B-instruct:8b
+      api_base: http://ollama-llm:11434
+
+  # Claude alias -> route to your coding/structured-friendly model
+  - model_name: claude-sonnet-4-5@20250929
+    litellm_params:
+      model: ollama/codellama:7b-instruct
+      api_base: http://ollama-llm:11434
