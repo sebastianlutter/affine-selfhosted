@@ -30,9 +30,9 @@ The setup uses lightweight CPU-friendly models optimized for local execution:
 
 | Use Case | AFFiNE Alias | Actual Model | Size |
 |----------|-------------|--------------|------|
-| Chat & Text Generation | [`gpt-4o-mini-local`](config/config.json:12) | [`llama3.2:3b-instruct`](litellm/config.yaml:6) | 3B params |
-| Code Generation | [`gpt-coder-mini-local`](config/config.json:17) | [`codellama:7b-instruct`](litellm/config.yaml:18) | 7B params |
-| Text Embeddings | [`text-embedding-3-small-local`](config/config.json:19) | [`snowflake-arctic-embed:latest`](litellm/config.yaml:27) | ~335M params |
+| Chat & Text Generation | [`gpt-4o-mini`](config/config.json:12) | [`cas/llama-3.2-3b-instruct`](litellm/config.yaml:7) | 3B params |
+| Code Generation | [`gpt-4.1-mini`](config/config.json:17) | [`ollama/codellama:7b-instruct`](litellm/config.yaml:12) | 7B params |
+| Text Embeddings | [`text-embedding-3-small`](config/config.json:19) | [`ollama/snowflake-arctic-embed:latest`](litellm/config.yaml:24) | ~335M params |
 | Images | [`unsplash-photo`](config/config.json:10) | Unsplash API | N/A |
 
 **Configured Scenarios:**
