@@ -4,7 +4,7 @@ model_list:
   # --- Your intended OpenAI-compatible IDs ---
   - model_name: gpt-4o-mini
     litellm_params:
-      model: mervinpraison/llama3.2-3B-instruct:8b
+      model: cas/llama-3.2-3b-instruct
       api_base: http://ollama-llm:11434
 
   - model_name: gpt-4.1-mini
@@ -14,7 +14,7 @@ model_list:
 
   - model_name: gpt-4o
     litellm_params:
-      model: mervinpraison/llama3.2-3B-instruct:8b
+      model: cas/llama-3.2-3b-instruct
       api_base: http://ollama-llm:11434
 
   - model_name: text-embedding-3-small
@@ -28,12 +28,12 @@ model_list:
   # Gemini aliases -> route to your small fast chat model
   - model_name: gemini-2.5-flash
     litellm_params:
-      model: mervinpraison/llama3.2-3B-instruct:8b
+      model: cas/llama-3.2-3b-instruct
       api_base: http://ollama-llm:11434
 
   - model_name: gemini-2.5-pro
     litellm_params:
-      model: mervinpraison/llama3.2-3B-instruct:8b
+      model: cas/llama-3.2-3b-instruct
       api_base: http://ollama-llm:11434
 
   # Claude alias -> route to your coding/structured-friendly model
