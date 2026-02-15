@@ -30,21 +30,9 @@ fi
 
 AFFINE_BASIC_AUTH_CREDENTIALS="$(
   htpasswd -nbB "${AFFINE_BASIC_AUTH_USER}" "${AFFINE_BASIC_AUTH_PASSWORD}" \
-  | sed 's/\$/$$/g'
+  | sed -e 's/\\$/\\$\\$/g'
 )"
 export AFFINE_BASIC_AUTH_CREDENTIALS
-
-if [[ -z "${LITELLM_MASTER_KEY:-}" ]]; then
-  if ! command -v openssl >/dev/null 2>&1; then
-    echo "ERROR: openssl is required to generate LITELLM_MASTER_KEY." >&2
-    exit 1
-  fi
-  LITELLM_MASTER_KEY="sk-local-$(openssl rand -hex 24)"
-  export LITELLM_MASTER_KEY
-  echo "Generated missing LITELLM_MASTER_KEY."
-  echo "Persisting LITELLM_MASTER_KEY to .env for stable restarts..."
-  printf '\nLITELLM_MASTER_KEY=%s\n' "${LITELLM_MASTER_KEY}" >> .env
-fi
 
 if [[ -z "${LITELLM_MASTER_KEY:-}" ]]; then
   echo "ERROR: LITELLM_MASTER_KEY is empty." >&2
