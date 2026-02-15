@@ -2,28 +2,24 @@
   "$schema": "https://github.com/toeverything/affine/releases/latest/download/config.schema.json",
   "copilot": {
     "enabled": true,
-
     "scenarios": {
       "override_enabled": true,
       "scenarios": {
         "audio_transcribing": "disabled",
         "image": "unsplash-photo",
-
         "chat": "gpt-4o-mini",
         "complex_text_generation": "gpt-4o-mini",
         "quick_text_generation": "gpt-4o-mini",
         "quick_decision_making": "gpt-4o-mini",
         "polish_and_summarize": "gpt-4o-mini",
         "coding": "gpt-4.1-mini",
-
         "embedding": "text-embedding-3-small",
         "rerank": "gpt-4o-mini"
       }
     },
-
     "providers.openai": {
-      "apiKey": "sk-local-anything",
-      "baseURL": "https://ai.sebastianlutter.de/v1"
+      "apiKey": "sk-local-FROM-DOTENV-COPILOT_OPENAI_API_KEY",
+      "baseURL": "FROM-DOTENV-AFFINE_OPENAI_API_URL"
     }
   }
 }
