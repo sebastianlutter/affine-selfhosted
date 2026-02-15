@@ -1,209 +1,204 @@
-# AFFiNE Self-Hosted (with Local AI and Public Gateway Integration)
+# AFFiNE Self-Hosted Behind Traefik
 
-This project runs AFFiNE with PostgreSQL, Redis, LiteLLM, and Ollama, and
-publishes AFFiNE through the shared `public-gateway` Traefik stack via HTTPS
-(`affine.sebastianlutter.de` by default).
+This repository runs an AFFiNE cloud instance on your server and publishes it through an already running Traefik gateway.
 
-## Purpose
+It is designed for this setup:
 
-- Self-host AFFiNE with persistent storage.
-- Use local AI models through `LiteLLM -> Ollama`.
-- Expose AFFiNE through Traefik with Let's Encrypt certificates.
+- Traefik is managed separately (see `../public-gateway/docker-compose.traefik.yaml`)
+- Traefik has Docker provider enabled
+- Both stacks share an external attachable network named `public-gateway`
+- AFFiNE is exposed via your domain over HTTPS
 
-## Stack Overview
+## What You Get
 
-Services in `docker-compose.yml`:
+- AFFiNE + PostgreSQL + Redis with persistent storage
+- Optional local AI stack (`LiteLLM -> Ollama`) for Copilot
+- Traefik labels already wired for domain routing and TLS
+- Deployment script that validates network/runtime prerequisites
 
-- `affine`: AFFiNE backend/web server.
-- `affine_migration`: one-shot predeploy migration job.
-- `postgres`: pgvector-enabled PostgreSQL.
-- `redis`: cache/session store.
-- `litellm`: OpenAI-compatible proxy for local models.
-- `ollama-llm`: local model runtime (GPU enabled via `gpus: all`).
+## Compose Modes
 
-Traffic flow:
+- `docker-compose.yml`: AFFiNE + local AI services (`caddy`, `affine_ai_helper`, `litellm`, `ollama-llm`)
+- `docker-compose.no-ai.yml`: AFFiNE only (no local AI services)
+- `deployCompose.sh`: deploy helper for both modes (`--no-ai` switches file)
+
+## Architecture
+
+AI mode (`docker-compose.yml`):
 
 ```text
-Internet -> Traefik (public-gateway project) -> affine:3010
-AFFiNE -> LiteLLM -> Ollama
+Internet
+  -> Traefik (public-gateway stack)
+  -> affine:3010
+
+AFFiNE Copilot calls
+  -> caddy:80/v1
+  -> /v1/responses* -> affine_ai_helper:4011 -> litellm:4000 -> ollama-llm:11434
+  -> other /v1/*    -> litellm:4000 -> ollama-llm:11434
 ```
+
+No-AI mode (`docker-compose.no-ai.yml`):
+
+```text
+Internet -> Traefik -> affine:3010
+```
+
+## How `docker-compose.yml` Is Wired
+
+Service roles:
+
+- `affine`: main web/API service, routed publicly by Traefik
+- `affine_migration`: one-shot migration job (`self-host-predeploy.js`) that must finish before `affine` starts
+- `postgres`: persistent database (`pgvector/pgvector:pg16-trixie`)
+- `redis`: cache/session/queue backend
+- `caddy`: internal AI path router (`/v1`)
+- `affine_ai_helper`: adapter for AFFiNE `/v1/responses*` behavior
+- `litellm`: OpenAI-compatible gateway to local models
+- `ollama-llm`: local model runtime (`gpus: all`)
+
+Network model:
+
+- Only `affine` joins both `default` and `public-gateway`
+- All other services stay internal on `default`
+- Public ingress is handled only by Traefik via labels on `affine`
+
+Traefik labels on `affine`:
+
+- `traefik.enable=true`
+- `traefik.constraint-label=${TRAEFIK_CONSTRAINT_LABEL}`
+- `traefik.docker.network=${TRAEFIK_PUBLIC_NETWORK}`
+- router rule: `Host(${AFFINE_SERVER_HOST})`
+- TLS resolver: `${TRAEFIK_CERT_RESOLVER}`
+- internal service port: `3010`
+- optional AFFiNE basic auth middleware from `${AFFINE_BASIC_AUTH_CREDENTIALS}`
+
+## Expected Traefik Side (`public-gateway`)
+
+`../public-gateway/docker-compose.traefik.yaml` shows the gateway assumptions:
+
+- `providers.docker=true`
+- `providers.swarm=true`
+- both providers scoped to network `public-gateway`
+- both providers constrained by `traefik.constraint-label=public-gateway`
+- entrypoints on `:80` and `:443`
+- ACME resolver `myresolver` (HTTP challenge)
+
+If your Traefik does not match this model, AFFiNE labels may not be discovered.
 
 ## Prerequisites
 
-- Docker Engine + Docker Compose plugin.
-- `ollama-llm` is configured with `gpus: all`, so NVIDIA GPU support must be available.
-- NVIDIA drivers and `nvidia-container-runtime` must be installed and working with Docker.
-- The `public-gateway` stack deployed and healthy.
-- DNS `affine.sebastianlutter.de` pointing to your server.
+- Linux server with Docker Engine + Docker Compose plugin
+- Running Traefik gateway with the behavior above
+- DNS `A/AAAA` record for your AFFiNE host pointing to the server
+- Ports `80` and `443` reachable from the internet
+- `htpasswd` installed (required by `deployCompose.sh`)
+- `jq` installed if you want automatic AI config sync in `config/config.json`
 
-Required Docker runtime config (`/etc/docker/daemon.json`):
+AI mode only:
 
-```json
-{
-    "default-runtime": "nvidia",
-    "runtimes": {
-        "nvidia": {
-            "args": [],
-            "path": "nvidia-container-runtime"
-        }
-    }
-}
+- NVIDIA GPU runtime available to Docker (`gpus: all` in `ollama-llm`)
+
+## Setup
+
+1. Create `.env` from template:
+
+```bash
+cp _env_example .env
 ```
 
-## Configuration
+2. Set at least these variables in `.env`:
 
-Edit `.env`:
+- `AFFINE_SERVER_HOST` (example: `affine.example.org`)
+- `AFFINE_SERVER_EXTERNAL_URL` (example: `https://affine.example.org`)
+- `AFFINE_BASIC_AUTH_USER`
+- `AFFINE_BASIC_AUTH_PASSWORD`
+- `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`
+- `DB_DATA_LOCATION`, `UPLOAD_LOCATION`, `CONFIG_LOCATION`
+- `TRAEFIK_PUBLIC_NETWORK` (normally `public-gateway`)
+- `TRAEFIK_CONSTRAINT_LABEL` (normally `public-gateway`)
+- `TRAEFIK_CERT_RESOLVER` (normally `myresolver`)
 
-- Core:
-  - `AFFINE_REVISION`
-  - `PORT`
-  - `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`
-  - `DB_DATA_LOCATION`, `UPLOAD_LOCATION`, `CONFIG_LOCATION`
-- Public URL:
-  - `AFFINE_SERVER_HTTPS=true`
-  - `AFFINE_SERVER_HOST=affine.sebastianlutter.de`
-  - `AFFINE_SERVER_EXTERNAL_URL=https://affine.sebastianlutter.de`
-- Gateway / Traefik:
-  - `AFFINE_DOMAIN`
-  - `TRAEFIK_PUBLIC_NETWORK` (default `public-gateway`)
-  - `TRAEFIK_CONSTRAINT_LABEL` (default `public-gateway`)
-  - `TRAEFIK_CERT_RESOLVER` (default `myresolver`)
-- Local models:
-  - `OLLAMA_MODELS` (comma-separated model list to preload)
-- Auth / AI:
-  - `AFFINE_BASIC_AUTH_USER`
-  - `AFFINE_BASIC_AUTH_PASSWORD`
-  - `LITELLM_MASTER_KEY` (optional; auto-generated by `deployCompose.sh` if missing)
-  - `COPILOT_OPENAI_API_KEY` (optional; defaults to `LITELLM_MASTER_KEY`)
-  - `AFFINE_OPENAI_API_URL` (optional; defaults to `https://${AFFINE_LLM_DOMAIN}/v1`)
-  - `SELFHOSTED=true`
+3. AI mode only, also set:
 
-## AFFiNE AI Configuration Guide
-
-Use these options to configure AFFiNE Copilot with an OpenAI-compatible endpoint
-(LiteLLM in this stack).
-
-### 1. Environment variables
-
-Set in `.env` (or let `deployCompose.sh` derive defaults):
-
-```dotenv
-# AI endpoint + key for AFFiNE
-COPILOT_OPENAI_API_KEY=sk-local-xxxx
-AFFINE_OPENAI_API_URL=https://ai.sebastianlutter.de/v1
-SELFHOSTED=true
-```
-
-This project also passes:
-
-- `COPILOT_OPENAI_API_KEY` and `AFFINE_OPENAI_API_URL` into the `affine` container.
-- `LITELLM_MASTER_KEY` into `litellm` so bearer auth is required.
-- The same key into `affine_ai_helper` for `/v1/responses`.
-
-### 2. Admin UI
-
-After deploy, check **Admin -> AI** in AFFiNE and verify the provider key/base URL
-match your expected values for your current AFFiNE version.
-
-### 3. Config file fallback
-
-If env vars are not applied by your AFFiNE build, use mounted config:
-
-- Path: `${CONFIG_LOCATION}/config.json` (mounted to `/root/.affine/config/config.json`).
-- `deployCompose.sh` syncs:
-  - `.copilot["providers.openai"].apiKey`
-  - `.copilot["providers.openai"].baseURL`
-
-So AFFiNE still gets the same OpenAI-compatible key/url pair even when env-based
-resolution is partial.
+- `LITELLM_MASTER_KEY` (required)
+- `COPILOT_OPENAI_API_KEY` (optional, defaults to `LITELLM_MASTER_KEY`)
+- `AFFINE_OPENAI_API_URL` (optional, defaults to `http://caddy:80/v1`)
+- `OLLAMA_MODELS` (optional preload list)
 
 ## Deploy
 
-Preferred command:
+AI mode:
 
 ```bash
 ./deployCompose.sh
 ```
 
-What `deployCompose.sh` does:
-
-- Loads and exports `.env`.
-- Ensures swarm is initialized (needed for overlay network).
-- Ensures external overlay network `${TRAEFIK_PUBLIC_NETWORK}` exists and is
-  attachable.
-- Validates compose rendering.
-- Starts all services in background (`docker compose up -d`).
-
-Manual alternative:
+No-AI mode:
 
 ```bash
-docker compose --env-file .env up -d
+./deployCompose.sh --no-ai
 ```
 
-## Access
+What the script does:
 
-- Public HTTPS (via Traefik):
-  - `https://affine.sebastianlutter.de`
-- Direct local port (if exposed):
-  - `http://<host>:3010`
-- LiteLLM:
-  - `http://<host>:4000/v1/models`
-- Ollama:
-  - `http://<host>:11434`
+- loads `.env`
+- generates escaped Traefik basic-auth credentials from user/password
+- validates compose file
+- ensures swarm is initialized (for overlay networking)
+- ensures `TRAEFIK_PUBLIC_NETWORK` exists as an attachable overlay network
+- starts the selected compose stack in background
 
 ## Operations
 
-Stop stack:
+AI mode commands:
 
 ```bash
-docker compose --env-file .env down
+docker compose -f docker-compose.yml --env-file .env ps
+docker compose -f docker-compose.yml --env-file .env logs -f affine caddy affine_ai_helper litellm ollama-llm
+docker compose -f docker-compose.yml --env-file .env down
 ```
 
-Show status:
+No-AI mode commands:
 
 ```bash
-docker compose --env-file .env ps
+docker compose -f docker-compose.no-ai.yml --env-file .env ps
+docker compose -f docker-compose.no-ai.yml --env-file .env logs -f affine postgres redis
+docker compose -f docker-compose.no-ai.yml --env-file .env down
 ```
 
-Show logs:
+## Persistence
 
-```bash
-docker compose --env-file .env logs -f affine litellm ollama-llm
-```
+Data lives in paths from `.env`:
 
-## Persistence and Cleanup
+- `${DB_DATA_LOCATION}`: PostgreSQL data
+- `${UPLOAD_LOCATION}`: AFFiNE uploads/storage
+- `${CONFIG_LOCATION}`: AFFiNE config (including `config.json`)
+- `./ollama-downloads`: local model files (AI mode)
 
-Persistent data locations are controlled by `.env`:
+## Cleanup
 
-- Postgres data: `${DB_DATA_LOCATION}`
-- AFFiNE uploads: `${UPLOAD_LOCATION}`
-- AFFiNE config: `${CONFIG_LOCATION}`
-- Ollama models: `./ollama-downloads`
-
-To remove persistent data:
+`cleanUp.sh` removes local `postgres` and `storage` directories:
 
 ```bash
 ./cleanUp.sh
 ```
 
-This permanently deletes local stored state.
+Use it only if you intentionally want to delete persisted data.
 
 ## Troubleshooting
 
-- Verify Traefik labels/network wiring:
+Show rendered Traefik labels for `affine`:
 
 ```bash
-docker compose --env-file .env config | sed -n '/affine:/,/^[^ ]/p'
+docker compose -f docker-compose.yml --env-file .env config | sed -n '/affine:/,/^[^ ]/p'
 ```
 
-- Verify the shared network exists and is attachable:
+Check shared network type and attachable flag:
 
 ```bash
 docker network inspect public-gateway --format '{{.Driver}} {{.Attachable}}'
 ```
 
-- Verify model proxy:
+Expected output:
 
-```bash
-curl -s http://localhost:4000/v1/models
-```
+- `overlay true`
