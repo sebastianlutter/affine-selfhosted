@@ -92,8 +92,7 @@ If your Traefik does not match this model, AFFiNE labels may not be discovered.
 - Running Traefik gateway with the behavior above
 - DNS `A/AAAA` record for your AFFiNE host pointing to the server
 - Ports `80` and `443` reachable from the internet
-- `htpasswd` installed (required by `deployCompose.sh`)
-- `jq` installed if you want automatic AI config sync in `config/config.json`
+- Docker access (the deploy script uses `docker run -i stedolan/jq` for automatic AI config sync in `config/config.json`)
 
 AI mode only:
 
@@ -145,7 +144,7 @@ No-AI mode:
 What the script does:
 
 - loads `.env`
-- generates escaped Traefik basic-auth credentials from user/password
+- generates escaped Traefik basic-auth credentials from user/password using `httpd:2.4-alpine` (`docker run ... htpasswd`)
 - validates compose file
 - ensures swarm is initialized (for overlay networking)
 - ensures `TRAEFIK_PUBLIC_NETWORK` exists as an attachable overlay network
