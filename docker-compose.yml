@@ -1,6 +1,11 @@
 name: affine
 services:
 
+  # Service: ollama-llm
+  # Purpose: Runs local LLM/embedding models and serves inference over Ollama API.
+  # Provides: http://ollama-llm:11434 (internal only).
+  # Uses: Model files from ./ollama-downloads and startup model list from OLLAMA_MODELS.
+  # Used by: litellm.
   ollama-llm:
     image: ollama/ollama:0.16.1
     gpus: all
@@ -24,38 +29,51 @@ services:
       retries: 5
       start_period: 30s
 
+  # Service: affine_ai_helper
+  # Purpose: Adapts OpenAI Responses API calls (/v1/responses*) for AFFiNE to LiteLLM chat streaming.
+  # Provides: http://affine_ai_helper:4011 (internal adapter endpoint).
+  # Uses: litellm (LITELLM_URL + LITELLM_KEY).
+  # Used by: caddy for /v1/responses* traffic.
   affine_ai_helper:
     build:
       context: ./affine_ai_helper
       dockerfile: Dockerfile
     container_name: affine_ai_helper
+#    ports:
+#      - 4011:4011
     environment:
       # where your LiteLLM is reachable inside Docker
       - LITELLM_URL=http://litellm:4000
       - LITELLM_KEY=${LITELLM_MASTER_KEY}
       # optional custom settings
-      - PORT=5000
-    labels:
-      - traefik.enable=true
-      - traefik.constraint-label=${TRAEFIK_CONSTRAINT_LABEL}
-      - traefik.docker.network=${TRAEFIK_PUBLIC_NETWORK}
-      - traefik.http.routers.affine-llm-responses.rule=Host(`${AFFINE_LLM_DOMAIN}`) && PathPrefix(`/v1/responses`)
-      - traefik.http.routers.affine-llm-responses.entrypoints=https
-      - traefik.http.routers.affine-llm-responses.tls=true
-      - traefik.http.routers.affine-llm-responses.tls.certresolver=${TRAEFIK_CERT_RESOLVER}
-      - traefik.http.routers.affine-llm-responses.priority=200
-      - traefik.http.routers.affine-llm-responses.middlewares=affine-llm-sse-headers
-      - traefik.http.services.affine-llm-responses.loadbalancer.server.port=5000
-      - traefik.http.middlewares.affine-llm-sse-headers.headers.customresponseheaders.X-Accel-Buffering=no
-      - traefik.http.middlewares.affine-llm-sse-headers.headers.customresponseheaders.Cache-Control=no-cache
+      - PORT=4011
     depends_on:
       - litellm
     networks:
       - default
-      - public-gateway
+    restart: unless-stopped
+
+  # Service: caddy
+  # Purpose: Internal AI gateway with path-based routing.
+  # Provides: http://caddy:80/v1 for AFFiNE.
+  # Uses: Routing rules from ./affine_ai_helper/Caddyfile.
+  # Used by: affine (AFFINE_OPENAI_API_URL), forwards to affine_ai_helper and litellm.
+  caddy:
+    image: caddy:2
+    container_name: affine_ai_gateway
+    volumes:
+      - ./affine_ai_helper/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - affine_ai_helper
+      - litellm
     restart: unless-stopped
 
 
+  # Service: affine
+  # Purpose: Main AFFiNE application (web + API).
+  # Provides: app endpoint on port 3010 (exposed externally through public Traefik).
+  # Uses: postgres, redis, caddy AI gateway, persistent storage/config volumes.
+  # Used by: End users through public-gateway Traefik router.
   affine:
     image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-stable}
     container_name: affine_server
@@ -65,7 +83,7 @@ services:
       - traefik.enable=true
       - traefik.constraint-label=${TRAEFIK_CONSTRAINT_LABEL}
       - traefik.docker.network=${TRAEFIK_PUBLIC_NETWORK}
-      - traefik.http.routers.affine.rule=Host(`${AFFINE_DOMAIN}`)
+      - traefik.http.routers.affine.rule=Host(`${AFFINE_SERVER_HOST}`)
       - traefik.http.routers.affine.entrypoints=https
       - traefik.http.routers.affine.tls=true
       - traefik.http.routers.affine.tls.certresolver=${TRAEFIK_CERT_RESOLVER}
@@ -79,20 +97,22 @@ services:
         condition: service_healthy
       affine_migration:
         condition: service_completed_successfully
-      litellm:
-        condition: service_healthy
+      caddy:
+        condition: service_started
     volumes:
       # custom configurations
       - ${UPLOAD_LOCATION}:/root/.affine/storage
       - ${CONFIG_LOCATION}:/root/.affine/config
-    env_file:
-      - .env
     environment:
       - REDIS_SERVER_HOST=redis
       - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@postgres:5432/${DB_DATABASE:-affine}
       - AFFINE_INDEXER_ENABLED=false
+      - PORT=${PORT:-3010}
+      - AFFINE_SERVER_HTTPS=${AFFINE_SERVER_HTTPS:-true}
+      - AFFINE_SERVER_HOST=${AFFINE_SERVER_HOST}
+      - AFFINE_SERVER_EXTERNAL_URL=${AFFINE_SERVER_EXTERNAL_URL}
       - COPILOT_OPENAI_API_KEY=${COPILOT_OPENAI_API_KEY}
-      - AFFINE_OPENAI_API_URL=${AFFINE_OPENAI_API_URL}
+      - AFFINE_OPENAI_API_URL=${AFFINE_OPENAI_API_URL:-http://caddy:80/v1}
       - SELFHOSTED=true
       - selfhosted=true
     networks:
@@ -100,6 +120,11 @@ services:
       - public-gateway
     restart: unless-stopped
 
+  # Service: affine_migration
+  # Purpose: One-shot predeploy migration job required before affine starts.
+  # Provides: Database/application schema initialization.
+  # Uses: postgres and redis plus same mounted storage/config paths as affine.
+  # Used by: affine startup dependency (service_completed_successfully).
   affine_migration:
     image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-stable}
     container_name: affine_migration_job
@@ -108,8 +133,6 @@ services:
       - ${UPLOAD_LOCATION}:/root/.affine/storage
       - ${CONFIG_LOCATION}:/root/.affine/config
     command: ['sh', '-c', 'node ./scripts/self-host-predeploy.js']
-    env_file:
-      - .env
     environment:
       - REDIS_SERVER_HOST=redis
       - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@postgres:5432/${DB_DATABASE:-affine}
@@ -120,6 +143,11 @@ services:
       redis:
         condition: service_healthy
 
+  # Service: redis
+  # Purpose: Cache/session and background coordination store for AFFiNE.
+  # Provides: redis://redis:6379 (internal only).
+  # Uses: Default redis configuration with healthcheck.
+  # Used by: affine and affine_migration.
   redis:
     image: redis:8.6.0-trixie
     container_name: affine_redis
@@ -130,6 +158,11 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Service: postgres
+  # Purpose: Persistent relational database (pgvector-enabled) for AFFiNE data.
+  # Provides: postgresql://postgres:5432/${DB_DATABASE}.
+  # Uses: Persistent volume at ${DB_DATA_LOCATION}.
+  # Used by: affine and affine_migration.
   postgres:
     image: pgvector/pgvector:pg16-trixie
     container_name: affine_postgres
@@ -151,12 +184,19 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Service: litellm
+  # Purpose: OpenAI-compatible API proxy over local Ollama models.
+  # Provides: http://litellm:4000/v1 (internal only).
+  # Uses: ./litellm/config.yaml and ollama-llm backend.
+  # Used by: caddy (default /v1 route) and affine_ai_helper (upstream proxy target).
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: litellm_proxy
     depends_on:
       ollama-llm:
         condition: service_healthy
+#    ports:
+#      - '4000:4000'
     volumes:
       - ./litellm/config.yaml:/app/config.yaml:ro
     command: ["--config", "/app/config.yaml"]
@@ -169,22 +209,14 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    labels:
-      - traefik.enable=true
-      - traefik.constraint-label=${TRAEFIK_CONSTRAINT_LABEL}
-      - traefik.docker.network=${TRAEFIK_PUBLIC_NETWORK}
-      - traefik.http.routers.affine-llm-default.rule=Host(`${AFFINE_LLM_DOMAIN}`) && PathPrefix(`/v1`)
-      - traefik.http.routers.affine-llm-default.entrypoints=https
-      - traefik.http.routers.affine-llm-default.tls=true
-      - traefik.http.routers.affine-llm-default.tls.certresolver=${TRAEFIK_CERT_RESOLVER}
-      - traefik.http.routers.affine-llm-default.priority=100
-      - traefik.http.services.affine-llm-default.loadbalancer.server.port=4000
     networks:
       - default
-      - public-gateway
     restart: unless-stopped
 
 networks:
+  # Network: public-gateway
+  # Purpose: Shared external Traefik network used to publish affine to the internet.
+  # Used by: affine (AI services remain on internal default network only).
   public-gateway:
     external: true
     name: ${TRAEFIK_PUBLIC_NETWORK}
