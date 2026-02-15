@@ -14,7 +14,7 @@ AFFINE_BASIC_AUTH_PASSWORD=YOUR_PASSWORD_HERE
 # a token (random string of your choice) to secure the AI endpoint
 # generate your own with: 
 # echo "sk-local-$(openssl rand -hex 24)"
-LITELLM_MASTER_KEY=sk-local-a846681061d623b600304f07bbb644da26a8076a543a703d
+LITELLM_MASTER_KEY=sk-local-foobarfoobar
 
 # public Traefik gateway settings
 AFFINE_DOMAIN=affine.example.org
@@ -36,6 +36,5 @@ DB_PASSWORD=letmein
 DB_DATABASE=affine
 
 # this is the local llm to use (multiple comma separated)
-#OLLAMA_MODELS=llama3.2:3b,dengcao/Qwen3-Reranker-4B:Q5_K_M,dengcao/Qwen3-Embedding-4B:Q5_K_M,unsplash-photo,codellama:7b
-OLLAMA_MODELS=llama3.2:3b
+OLLAMA_MODELS=llama3.2:3b,snowflake-arctic-embed:latest,codellama:7b-instruct
 
