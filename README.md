@@ -4,7 +4,7 @@ This repository runs an AFFiNE cloud instance on your server and publishes it th
 
 It is designed for this setup:
 
-- Traefik is managed separately (see `../public-gateway/docker-compose.traefik.yaml`)
+- Traefik is managed separately (see [traefik-public-gateway stack](https://gitlab.com/sebastian-lutter/traefik-public-gateway))
 - Traefik has Docker provider enabled
 - Both stacks share an external attachable network named `public-gateway`
 - AFFiNE is exposed via your domain over HTTPS
@@ -21,6 +21,7 @@ It is designed for this setup:
 - `docker-compose.yml`: AFFiNE + local AI services (`caddy`, `affine_ai_helper`, `litellm`, `ollama-llm`)
 - `docker-compose.no-ai.yml`: AFFiNE only (no local AI services)
 - `deployCompose.sh`: deploy helper for both modes (`--no-ai` switches file)
+- `deployToServer.sh`: remote deploy helper (copies files via SSH/SCP, then runs `deployCompose.sh` on server)
 
 ## Architecture
 
@@ -117,6 +118,8 @@ cp _env_example .env
 - `TRAEFIK_PUBLIC_NETWORK` (normally `public-gateway`)
 - `TRAEFIK_CONSTRAINT_LABEL` (normally `public-gateway`)
 - `TRAEFIK_CERT_RESOLVER` (normally `myresolver`)
+- `SSH_SERVER` (SSH target for remote deploy, example: `user@host`)
+- `DEPLOY_REMOTE_DIR` (remote folder, default: `affine-selfhosted`)
 
 3. AI mode only, also set:
 
@@ -147,6 +150,27 @@ What the script does:
 - ensures swarm is initialized (for overlay networking)
 - ensures `TRAEFIK_PUBLIC_NETWORK` exists as an attachable overlay network
 - starts the selected compose stack in background
+
+### Remote Deploy (from workstation)
+
+AI mode:
+
+```bash
+./deployToServer.sh
+```
+
+No-AI mode:
+
+```bash
+./deployToServer.sh --no-ai
+```
+
+What the script does:
+
+- loads `.env` and reads `SSH_SERVER` / `DEPLOY_REMOTE_DIR`
+- ensures the remote directory exists
+- copies `.env`, compose files, and required project folders (`affine_ai_helper`, `config`, `litellm`, `llm`)
+- runs `./deployCompose.sh` remotely with forwarded arguments
 
 ## Operations
 

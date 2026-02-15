@@ -47,3 +47,7 @@ DB_DATABASE=affine
 
 # AI mode only: local LLM list (multiple comma separated)
 OLLAMA_MODELS=llama3.2:3b,snowflake-arctic-embed:latest,codellama:7b-instruct
+
+# remote deploy target for deployToServer.sh
+SSH_SERVER=user@example.org
+DEPLOY_REMOTE_DIR=affine-selfhosted
