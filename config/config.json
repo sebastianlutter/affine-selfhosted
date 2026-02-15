@@ -23,7 +23,7 @@
 
     "providers.openai": {
       "apiKey": "sk-local-anything",
-      "baseURL": "http://litellm:4000/v1"
+      "baseURL": "https://ai.sebastianlutter.de/v1"
     }
   }
 }

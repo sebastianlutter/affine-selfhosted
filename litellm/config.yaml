@@ -1,21 +1,25 @@
 litellm_settings:
   drop_params: true
+
 model_list:
   # --- Your intended OpenAI-compatible IDs ---
   - model_name: gpt-4o-mini
     litellm_params:
-      model: cas/llama-3.2-3b-instruct
+      model: llama3.2:1b
       api_base: http://ollama-llm:11434
+      custom_llm_provider: ollama
 
   - model_name: gpt-4.1-mini
     litellm_params:
       model: ollama/codellama:7b-instruct
       api_base: http://ollama-llm:11434
+      custom_llm_provider: ollama
 
   - model_name: gpt-4o
     litellm_params:
-      model: cas/llama-3.2-3b-instruct
+      model: llama3.2:1b
       api_base: http://ollama-llm:11434
+      custom_llm_provider: ollama
 
   - model_name: text-embedding-3-small
     litellm_params:
@@ -23,21 +27,25 @@ model_list:
       # model: ollama/nomic-embed-text:latest
       model: ollama/snowflake-arctic-embed:latest
       api_base: http://ollama-llm:11434
+      custom_llm_provider: ollama
 
   # --- Aliases to catch legacy/default scenario IDs still in DB ---
   # Gemini aliases -> route to your small fast chat model
   - model_name: gemini-2.5-flash
     litellm_params:
-      model: cas/llama-3.2-3b-instruct
+      model: llama3.2:1b
       api_base: http://ollama-llm:11434
+      custom_llm_provider: ollama
 
   - model_name: gemini-2.5-pro
     litellm_params:
-      model: cas/llama-3.2-3b-instruct
+      model: llama3.2:1b
       api_base: http://ollama-llm:11434
+      custom_llm_provider: ollama
 
   # Claude alias -> route to your coding/structured-friendly model
   - model_name: claude-sonnet-4-5@20250929
     litellm_params:
       model: ollama/codellama:7b-instruct
       api_base: http://ollama-llm:11434
+      custom_llm_provider: ollama
