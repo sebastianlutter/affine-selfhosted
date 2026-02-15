@@ -31,9 +31,24 @@ AFFiNE -> LiteLLM -> Ollama
 ## Prerequisites
 
 - Docker Engine + Docker Compose plugin.
-- NVIDIA runtime/driver if using Ollama with GPU.
+- `ollama-llm` is configured with `gpus: all`, so NVIDIA GPU support must be available.
+- NVIDIA drivers and `nvidia-container-runtime` must be installed and working with Docker.
 - The `public-gateway` stack deployed and healthy.
 - DNS `affine.sebastianlutter.de` pointing to your server.
+
+Required Docker runtime config (`/etc/docker/daemon.json`):
+
+```json
+{
+    "default-runtime": "nvidia",
+    "runtimes": {
+        "nvidia": {
+            "args": [],
+            "path": "nvidia-container-runtime"
+        }
+    }
+}
+```
 
 ## Configuration
 
