@@ -1,0 +1,36 @@
+# select a revision to deploy, available values: stable, beta, canary
+#AFFINE_REVISION=stable
+# stable from 02/2026
+AFFINE_REVISION=0690dd1be1fe
+
+# set the port for the server container it will expose the server on
+PORT=3010
+
+# set the host for the server for outgoing links
+AFFINE_SERVER_HTTPS=true
+AFFINE_SERVER_HOST=affine.example.org
+AFFINE_SERVER_EXTERNAL_URL=https://affine.example.org
+AFFINE_BASIC_AUTH_USER=admin
+AFFINE_BASIC_AUTH_PASSWORD=YOUR_PASSWORD_HERE
+# public Traefik gateway settings
+AFFINE_DOMAIN=affine.example.org
+AFFINE_LLM_DOMAIN=ai.example.org
+TRAEFIK_PUBLIC_NETWORK=public-gateway
+TRAEFIK_CONSTRAINT_LABEL=public-gateway
+TRAEFIK_CERT_RESOLVER=myresolver
+
+# position of the database data to persist
+DB_DATA_LOCATION=./postgres/pgdata
+# position of the upload data(images, files, etc.) to persist
+UPLOAD_LOCATION=./storage
+# position of the configuration files to persist
+CONFIG_LOCATION=./config
+
+# database credentials
+DB_USERNAME=affine
+DB_PASSWORD=letmein
+DB_DATABASE=affine
+
+# this is the local llm to use (multiple comma separated)
+#OLLAMA_MODELS=llama3.2:3b,dengcao/Qwen3-Reranker-4B:Q5_K_M,dengcao/Qwen3-Embedding-4B:Q5_K_M,unsplash-photo,codellama:7b
+OLLAMA_MODELS=llama3.2:3b
