@@ -5,8 +5,45 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
+usage() {
+  cat <<'EOF'
+Usage: ./deployCompose.sh [--no-ai]
+
+Options:
+  --no-ai   Deploy using docker-compose.no-ai.yml and skip AI configuration.
+  -h, --help  Show this help message.
+EOF
+}
+
+USE_NO_AI=false
+COMPOSE_FILE="docker-compose.yml"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-ai)
+      USE_NO_AI=true
+      COMPOSE_FILE="docker-compose.no-ai.yml"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "ERROR: Unknown argument '$1'." >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
 if [[ ! -f .env ]]; then
   echo "ERROR: .env not found at ${SCRIPT_DIR}/.env" >&2
+  exit 1
+fi
+
+if [[ ! -f "${COMPOSE_FILE}" ]]; then
+  echo "ERROR: ${COMPOSE_FILE} not found at ${SCRIPT_DIR}/${COMPOSE_FILE}" >&2
   exit 1
 fi
 
@@ -34,39 +71,48 @@ AFFINE_BASIC_AUTH_CREDENTIALS="$(
 )"
 export AFFINE_BASIC_AUTH_CREDENTIALS
 
-if [[ -z "${LITELLM_MASTER_KEY:-}" ]]; then
-  echo "ERROR: LITELLM_MASTER_KEY is empty." >&2
-  exit 1
-fi
-
-export LITELLM_MASTER_KEY
-
-COPILOT_OPENAI_API_KEY="${COPILOT_OPENAI_API_KEY:-${LITELLM_MASTER_KEY}}"
-export COPILOT_OPENAI_API_KEY
-
-if [[ -z "${AFFINE_OPENAI_API_URL:-}" ]]; then
-  if [[ -z "${AFFINE_LLM_DOMAIN:-}" ]]; then
-    echo "ERROR: Set AFFINE_OPENAI_API_URL or AFFINE_LLM_DOMAIN in .env." >&2
-    exit 1
-  fi
-  AFFINE_OPENAI_API_URL="https://${AFFINE_LLM_DOMAIN}/v1"
-fi
-export AFFINE_OPENAI_API_URL
-
 AFFINE_CONFIG_FILE="${CONFIG_LOCATION}/config.json"
-if [[ -f "${AFFINE_CONFIG_FILE}" ]]; then
-  if ! command -v jq >/dev/null 2>&1; then
-    echo "ERROR: jq is required to set ${AFFINE_CONFIG_FILE} copilot apiKey." >&2
+if [[ "${USE_NO_AI}" == "false" ]]; then
+  if [[ -z "${LITELLM_MASTER_KEY:-}" ]]; then
+    echo "ERROR: LITELLM_MASTER_KEY is empty." >&2
     exit 1
   fi
-  TMP_CONFIG="$(mktemp)"
-  jq --arg key "${COPILOT_OPENAI_API_KEY}" --arg url "${AFFINE_OPENAI_API_URL}" \
-    '.copilot.enabled = true
-    | .copilot["providers.openai"].apiKey = $key
-    | .copilot["providers.openai"].baseURL = $url' \
-    "${AFFINE_CONFIG_FILE}" > "${TMP_CONFIG}"
-  mv "${TMP_CONFIG}" "${AFFINE_CONFIG_FILE}"
-  echo "Synced ${AFFINE_CONFIG_FILE} OpenAI copilot settings."
+
+  export LITELLM_MASTER_KEY
+
+  COPILOT_OPENAI_API_KEY="${COPILOT_OPENAI_API_KEY:-${LITELLM_MASTER_KEY}}"
+  export COPILOT_OPENAI_API_KEY
+
+  if [[ -z "${AFFINE_OPENAI_API_URL:-}" ]]; then
+    AFFINE_OPENAI_API_URL="http://caddy:80/v1"
+  fi
+  export AFFINE_OPENAI_API_URL
+
+  if [[ -f "${AFFINE_CONFIG_FILE}" ]]; then
+    if ! command -v jq >/dev/null 2>&1; then
+      echo "ERROR: jq is required to set ${AFFINE_CONFIG_FILE} copilot apiKey." >&2
+      exit 1
+    fi
+    TMP_CONFIG="$(mktemp)"
+    jq --arg key "${COPILOT_OPENAI_API_KEY}" --arg url "${AFFINE_OPENAI_API_URL}" \
+      '.copilot.enabled = true
+      | .copilot["providers.openai"].apiKey = $key
+      | .copilot["providers.openai"].baseURL = $url' \
+      "${AFFINE_CONFIG_FILE}" > "${TMP_CONFIG}"
+    mv "${TMP_CONFIG}" "${AFFINE_CONFIG_FILE}"
+    echo "Synced ${AFFINE_CONFIG_FILE} OpenAI copilot settings."
+  fi
+else
+  if [[ -f "${AFFINE_CONFIG_FILE}" ]]; then
+    if command -v jq >/dev/null 2>&1; then
+      TMP_CONFIG="$(mktemp)"
+      jq '.copilot.enabled = false' "${AFFINE_CONFIG_FILE}" > "${TMP_CONFIG}"
+      mv "${TMP_CONFIG}" "${AFFINE_CONFIG_FILE}"
+      echo "Disabled copilot in ${AFFINE_CONFIG_FILE} (--no-ai)."
+    else
+      echo "WARN: jq not found, skipping ${AFFINE_CONFIG_FILE} copilot disable step." >&2
+    fi
+  fi
 fi
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -104,11 +150,13 @@ else
   fi
 fi
 
+echo "Using compose file: ${COMPOSE_FILE}"
+
 echo "Validating compose config..."
-docker compose --env-file .env config >/dev/null
+docker compose -f "${COMPOSE_FILE}" --env-file .env config >/dev/null
 
 echo "Starting compose stack in background..."
-docker compose --env-file .env up -d
+docker compose -f "${COMPOSE_FILE}" --env-file .env up -d
 
 echo "Service status:"
-docker compose --env-file .env ps
+docker compose -f "${COMPOSE_FILE}" --env-file .env ps

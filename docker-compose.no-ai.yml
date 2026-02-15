@@ -1,0 +1,121 @@
+name: affine
+services:
+
+  # Service: affine
+  # Purpose: Main AFFiNE application (web + API).
+  # Provides: app endpoint on port 3010 (exposed externally through public Traefik).
+  # Uses: postgres, redis, persistent storage/config volumes.
+  # Used by: End users through public-gateway Traefik router.
+  affine:
+    image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-stable}
+    container_name: affine_server
+#    ports:
+#      - '3010:3010'
+    labels:
+      - traefik.enable=true
+      - traefik.constraint-label=${TRAEFIK_CONSTRAINT_LABEL}
+      - traefik.docker.network=${TRAEFIK_PUBLIC_NETWORK}
+      - traefik.http.routers.affine.rule=Host(`${AFFINE_SERVER_HOST}`)
+      - traefik.http.routers.affine.entrypoints=https
+      - traefik.http.routers.affine.tls=true
+      - traefik.http.routers.affine.tls.certresolver=${TRAEFIK_CERT_RESOLVER}
+      - traefik.http.routers.affine.middlewares=affine-auth
+      - "traefik.http.middlewares.affine-auth.basicauth.users=${AFFINE_BASIC_AUTH_CREDENTIALS}"
+      - traefik.http.services.affine.loadbalancer.server.port=3010
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      affine_migration:
+        condition: service_completed_successfully
+    volumes:
+      # custom configurations
+      - ${UPLOAD_LOCATION}:/root/.affine/storage
+      - ${CONFIG_LOCATION}:/root/.affine/config
+    environment:
+      - REDIS_SERVER_HOST=redis
+      - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@postgres:5432/${DB_DATABASE:-affine}
+      - AFFINE_INDEXER_ENABLED=false
+      - PORT=${PORT:-3010}
+      - AFFINE_SERVER_HTTPS=${AFFINE_SERVER_HTTPS:-true}
+      - AFFINE_SERVER_HOST=${AFFINE_SERVER_HOST}
+      - AFFINE_SERVER_EXTERNAL_URL=${AFFINE_SERVER_EXTERNAL_URL}
+      - SELFHOSTED=true
+      - selfhosted=true
+    networks:
+      - default
+      - public-gateway
+    restart: unless-stopped
+
+  # Service: affine_migration
+  # Purpose: One-shot predeploy migration job required before affine starts.
+  # Provides: Database/application schema initialization.
+  # Uses: postgres and redis plus same mounted storage/config paths as affine.
+  # Used by: affine startup dependency (service_completed_successfully).
+  affine_migration:
+    image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-stable}
+    container_name: affine_migration_job
+    volumes:
+      # custom configurations
+      - ${UPLOAD_LOCATION}:/root/.affine/storage
+      - ${CONFIG_LOCATION}:/root/.affine/config
+    command: ['sh', '-c', 'node ./scripts/self-host-predeploy.js']
+    environment:
+      - REDIS_SERVER_HOST=redis
+      - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@postgres:5432/${DB_DATABASE:-affine}
+      - AFFINE_INDEXER_ENABLED=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Service: redis
+  # Purpose: Cache/session and background coordination store for AFFiNE.
+  # Provides: redis://redis:6379 (internal only).
+  # Uses: Default redis configuration with healthcheck.
+  # Used by: affine and affine_migration.
+  redis:
+    image: redis:8.6.0-trixie
+    container_name: affine_redis
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Service: postgres
+  # Purpose: Persistent relational database (pgvector-enabled) for AFFiNE data.
+  # Provides: postgresql://postgres:5432/${DB_DATABASE}.
+  # Uses: Persistent volume at ${DB_DATA_LOCATION}.
+  # Used by: affine and affine_migration.
+  postgres:
+    image: pgvector/pgvector:pg16-trixie
+    container_name: affine_postgres
+    volumes:
+      - ${DB_DATA_LOCATION}:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE:-affine}
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+      # you better set a password for you database
+      # or you may add 'POSTGRES_HOST_AUTH_METHOD=trust' to ignore postgres security policy
+      POSTGRES_HOST_AUTH_METHOD: trust
+    healthcheck:
+      test:
+        ['CMD', 'pg_isready', '-U', "${DB_USERNAME}", '-d', "${DB_DATABASE:-affine}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  # Network: public-gateway
+  # Purpose: Shared external Traefik network used to publish affine to the internet.
+  # Used by: affine.
+  public-gateway:
+    external: true
+    name: ${TRAEFIK_PUBLIC_NETWORK}
