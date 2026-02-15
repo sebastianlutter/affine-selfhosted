@@ -4,8 +4,8 @@ services:
   ollama-llm:
     image: ollama/ollama:0.16.1
     gpus: all
-    ports:
-      - 11434:11434
+#    ports:
+#      - 11434:11434
     volumes:
      - ./ollama-downloads:/root/.ollama
      - ./llm/ollama-entrypoint.sh:/entrypoint.sh
@@ -59,8 +59,8 @@ services:
   affine:
     image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-stable}
     container_name: affine_server
-    ports:
-      - '${PORT:-3010}:3010'
+#    ports:
+#      - '3010:3010'
     labels:
       - traefik.enable=true
       - traefik.constraint-label=${TRAEFIK_CONSTRAINT_LABEL}
@@ -70,7 +70,7 @@ services:
       - traefik.http.routers.affine.tls=true
       - traefik.http.routers.affine.tls.certresolver=${TRAEFIK_CERT_RESOLVER}
       - traefik.http.routers.affine.middlewares=affine-auth
-      - traefik.http.middlewares.affine-auth.basicauth.users=${AFFINE_BASIC_AUTH_CREDENTIALS}
+      - "traefik.http.middlewares.affine-auth.basicauth.users=${AFFINE_BASIC_AUTH_CREDENTIALS}"
       - traefik.http.services.affine.loadbalancer.server.port=3010
     depends_on:
       redis:
