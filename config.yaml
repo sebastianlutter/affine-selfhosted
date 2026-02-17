@@ -1,0 +1,46 @@
+litellm_settings:
+  drop_params: true
+
+model_list:
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: devstral
+      api_base: https://litellm.brettinghams-dev.de/v1
+      api_key: sk-hCGNWUlE2k-qkzlROFAZyQ
+
+  - model_name: gpt-4.1-mini
+    litellm_params:
+      model: devstral
+      api_base: https://litellm.brettinghams-dev.de/v1
+      api_key: sk-hCGNWUlE2k-qkzlROFAZyQ
+
+  - model_name: gpt-4o
+    litellm_params:
+      model: devstral
+      api_base: https://litellm.brettinghams-dev.de/v1
+      api_key: sk-hCGNWUlE2k-qkzlROFAZyQ
+
+  - model_name: text-embedding-3-small
+    litellm_params:
+      model: devstral
+      api_base: https://litellm.brettinghams-dev.de/v1
+      api_key: sk-hCGNWUlE2k-qkzlROFAZyQ
+
+  - model_name: gemini-2.5-flash
+    litellm_params:
+      model: devstral
+      api_base: https://litellm.brettinghams-dev.de/v1
+      api_key: sk-hCGNWUlE2k-qkzlROFAZyQ
+
+  - model_name: gemini-2.5-pro
+    litellm_params:
+      model: devstral
+      api_base: https://litellm.brettinghams-dev.de/v1
+      api_key: sk-hCGNWUlE2k-qkzlROFAZyQ
+
+  - model_name: claude-sonnet-4-5@20250929
+    litellm_params:
+      model: devstral
+      api_base: https://litellm.brettinghams-dev.de/v1
+      api_key: sk-hCGNWUlE2k-qkzlROFAZyQ

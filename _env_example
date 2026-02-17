@@ -33,12 +33,6 @@ TRAEFIK_PUBLIC_NETWORK=public-gateway
 TRAEFIK_CONSTRAINT_LABEL=public-gateway
 TRAEFIK_CERT_RESOLVER=myresolver
 
-# position of the database data to persist
-DB_DATA_LOCATION=./postgres/pgdata
-# position of the upload data(images, files, etc.) to persist
-UPLOAD_LOCATION=./storage
-# position of the configuration files to persist
-CONFIG_LOCATION=./config
 
 # database credentials
 DB_USERNAME=affine

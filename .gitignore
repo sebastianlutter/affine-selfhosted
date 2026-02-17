@@ -2,3 +2,4 @@
 /ollama-downloads
 /storage
 .env
+/litellm/config.yaml

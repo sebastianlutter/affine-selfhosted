@@ -4,7 +4,7 @@ services:
   # Service: affine
   # Purpose: Main AFFiNE application (web + API).
   # Provides: app endpoint on port 3010 (exposed externally through public Traefik).
-  # Uses: postgres, redis, persistent storage/config volumes.
+  # Uses: postgres, redis, named persistent storage/config volumes.
   # Used by: End users through public-gateway Traefik router.
   affine:
     image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-stable}
@@ -31,8 +31,8 @@ services:
         condition: service_completed_successfully
     volumes:
       # custom configurations
-      - ${UPLOAD_LOCATION}:/root/.affine/storage
-      - ${CONFIG_LOCATION}:/root/.affine/config
+      - affine_storage:/root/.affine/storage
+      - affine_config:/root/.affine/config
     environment:
       - REDIS_SERVER_HOST=redis
       - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@postgres:5432/${DB_DATABASE:-affine}
@@ -51,15 +51,15 @@ services:
   # Service: affine_migration
   # Purpose: One-shot predeploy migration job required before affine starts.
   # Provides: Database/application schema initialization.
-  # Uses: postgres and redis plus same mounted storage/config paths as affine.
+  # Uses: postgres and redis plus same named storage/config volumes as affine.
   # Used by: affine startup dependency (service_completed_successfully).
   affine_migration:
     image: ghcr.io/toeverything/affine:${AFFINE_REVISION:-stable}
     container_name: affine_migration_job
     volumes:
       # custom configurations
-      - ${UPLOAD_LOCATION}:/root/.affine/storage
-      - ${CONFIG_LOCATION}:/root/.affine/config
+      - affine_storage:/root/.affine/storage
+      - affine_config:/root/.affine/config
     command: ['sh', '-c', 'node ./scripts/self-host-predeploy.js']
     environment:
       - REDIS_SERVER_HOST=redis
@@ -89,13 +89,13 @@ services:
   # Service: postgres
   # Purpose: Persistent relational database (pgvector-enabled) for AFFiNE data.
   # Provides: postgresql://postgres:5432/${DB_DATABASE}.
-  # Uses: Persistent volume at ${DB_DATA_LOCATION}.
+  # Uses: Named persistent volume affine_postgres_data.
   # Used by: affine and affine_migration.
   postgres:
     image: pgvector/pgvector:pg16-trixie
     container_name: affine_postgres
     volumes:
-      - ${DB_DATA_LOCATION}:/var/lib/postgresql/data
+      - affine_postgres_data:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -119,3 +119,8 @@ networks:
   public-gateway:
     external: true
     name: ${TRAEFIK_PUBLIC_NETWORK}
+
+volumes:
+  affine_storage:
+  affine_config:
+  affine_postgres_data:

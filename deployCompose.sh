@@ -7,22 +7,36 @@ cd "${SCRIPT_DIR}"
 
 usage() {
   cat <<'EOF'
-Usage: ./deployCompose.sh [--no-ai]
+Usage: ./deployCompose.sh [--no-ai | --remote-ai]
 
 Options:
-  --no-ai   Deploy using docker-compose.no-ai.yml and skip AI configuration.
+  --no-ai      Deploy using docker-compose.no-ai.yml and skip AI configuration.
+  --remote-ai  Deploy using docker-compose.remote-ai.yml (AI enabled, no local Ollama service).
   -h, --help  Show this help message.
 EOF
 }
 
-USE_NO_AI=false
+DEPLOY_MODE="local-ai"
 COMPOSE_FILE="docker-compose.yml"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-ai)
-      USE_NO_AI=true
+      if [[ "${DEPLOY_MODE}" != "local-ai" ]]; then
+        echo "ERROR: Choose only one mode: --no-ai or --remote-ai." >&2
+        exit 1
+      fi
+      DEPLOY_MODE="no-ai"
       COMPOSE_FILE="docker-compose.no-ai.yml"
+      shift
+      ;;
+    --remote-ai)
+      if [[ "${DEPLOY_MODE}" != "local-ai" ]]; then
+        echo "ERROR: Choose only one mode: --no-ai or --remote-ai." >&2
+        exit 1
+      fi
+      DEPLOY_MODE="remote-ai"
+      COMPOSE_FILE="docker-compose.remote-ai.yml"
       shift
       ;;
     -h|--help)
@@ -71,7 +85,7 @@ if [[ -z "${AFFINE_BASIC_AUTH_USER:-}" || -z "${AFFINE_BASIC_AUTH_PASSWORD:-}" ]
 fi
 
 HTPASSWD_DOCKER_IMAGE="${HTPASSWD_DOCKER_IMAGE:-httpd:2.4-alpine}"
-JQ_DOCKER_IMAGE="${JQ_DOCKER_IMAGE:-stedolan/jq}"
+JQ_DOCKER_IMAGE="${JQ_DOCKER_IMAGE:-contentdev/jq:latest}"
 
 generate_basic_auth_credentials() {
   local raw
@@ -103,7 +117,7 @@ fi
 export AFFINE_BASIC_AUTH_CREDENTIALS
 
 AFFINE_CONFIG_FILE="${CONFIG_LOCATION}/config.json"
-if [[ "${USE_NO_AI}" == "false" ]]; then
+if [[ "${DEPLOY_MODE}" != "no-ai" ]]; then
   if [[ -z "${LITELLM_MASTER_KEY:-}" ]]; then
     echo "ERROR: LITELLM_MASTER_KEY is empty." >&2
     exit 1
@@ -138,7 +152,7 @@ else
     TMP_CONFIG="$(mktemp)"
     if run_jq '.copilot.enabled = false' < "${AFFINE_CONFIG_FILE}" > "${TMP_CONFIG}"; then
       mv "${TMP_CONFIG}" "${AFFINE_CONFIG_FILE}"
-      echo "Disabled copilot in ${AFFINE_CONFIG_FILE} (--no-ai)."
+      echo "Disabled copilot in ${AFFINE_CONFIG_FILE} (--no-ai mode)."
     else
       rm -f "${TMP_CONFIG}"
       echo "WARN: Failed to update ${AFFINE_CONFIG_FILE} via Docker image ${JQ_DOCKER_IMAGE}; skipping copilot disable step." >&2
@@ -171,6 +185,7 @@ else
   fi
 fi
 
+echo "Deploy mode: ${DEPLOY_MODE}"
 echo "Using compose file: ${COMPOSE_FILE}"
 
 echo "Validating compose config..."

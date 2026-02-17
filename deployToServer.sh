@@ -12,6 +12,7 @@ Usage: ./deployToServer.sh [deployCompose.sh args]
 Examples:
   ./deployToServer.sh
   ./deployToServer.sh --no-ai
+  ./deployToServer.sh --remote-ai
 EOF
 }
 
@@ -42,6 +43,7 @@ FILES_TO_COPY=(
   "deployCompose.sh"
   "docker-compose.yml"
   "docker-compose.no-ai.yml"
+  "docker-compose.remote-ai.yml"
   "affine_ai_helper"
   "config"
   "litellm"

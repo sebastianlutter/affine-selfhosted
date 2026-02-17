@@ -18,8 +18,8 @@
       }
     },
     "providers.openai": {
-      "apiKey": "sk-local-FROM-DOTENV-COPILOT_OPENAI_API_KEY",
-      "baseURL": "FROM-DOTENV-AFFINE_OPENAI_API_URL"
+      "apiKey": "sk-local-a846681061d623b600304f07bbb644da26a8076a543a703d",
+      "baseURL": "http://caddy:80/v1"
     }
   }
 }

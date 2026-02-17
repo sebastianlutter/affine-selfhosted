@@ -12,20 +12,21 @@ It is designed for this setup:
 ## What You Get
 
 - AFFiNE + PostgreSQL + Redis with persistent storage
-- Optional local AI stack (`LiteLLM -> Ollama`) for Copilot
+- Optional AI stack for Copilot (local Ollama or remote provider via LiteLLM)
 - Traefik labels already wired for domain routing and TLS
 - Deployment script that validates network/runtime prerequisites
 
 ## Compose Modes
 
-- `docker-compose.yml`: AFFiNE + local AI services (`caddy`, `affine_ai_helper`, `litellm`, `ollama-llm`)
-- `docker-compose.no-ai.yml`: AFFiNE only (no local AI services)
-- `deployCompose.sh`: deploy helper for both modes (`--no-ai` switches file)
+- `docker-compose.yml`: local AI mode (`caddy`, `affine_ai_helper`, `litellm`, `ollama-llm`)
+- `docker-compose.remote-ai.yml`: remote AI mode (`caddy`, `affine_ai_helper`, `litellm`, no `ollama-llm`)
+- `docker-compose.no-ai.yml`: no AI mode (`affine`, `postgres`, `redis`)
+- `deployCompose.sh`: deploy helper for all modes (`--no-ai` and `--remote-ai`)
 - `deployToServer.sh`: remote deploy helper (copies files via SSH/SCP, then runs `deployCompose.sh` on server)
 
 ## Architecture
 
-AI mode (`docker-compose.yml`):
+Local AI mode (`docker-compose.yml`):
 
 ```text
 Internet
@@ -38,7 +39,20 @@ AFFiNE Copilot calls
   -> other /v1/*    -> litellm:4000 -> ollama-llm:11434
 ```
 
-No-AI mode (`docker-compose.no-ai.yml`):
+Remote AI mode (`docker-compose.remote-ai.yml`):
+
+```text
+Internet
+  -> Traefik (public-gateway stack)
+  -> affine:3010
+
+AFFiNE Copilot calls
+  -> caddy:80/v1
+  -> /v1/responses* -> affine_ai_helper:4011 -> litellm:4000 -> remote model provider
+  -> other /v1/*    -> litellm:4000 -> remote model provider
+```
+
+No AI mode (`docker-compose.no-ai.yml`):
 
 ```text
 Internet -> Traefik -> affine:3010
@@ -54,8 +68,10 @@ Service roles:
 - `redis`: cache/session/queue backend
 - `caddy`: internal AI path router (`/v1`)
 - `affine_ai_helper`: adapter for AFFiNE `/v1/responses*` behavior
-- `litellm`: OpenAI-compatible gateway to local models
+- `litellm`: OpenAI-compatible gateway to models/providers
 - `ollama-llm`: local model runtime (`gpus: all`)
+
+`docker-compose.remote-ai.yml` is the same layout without `ollama-llm` (LiteLLM is expected to use remote providers).
 
 Network model:
 
@@ -92,9 +108,9 @@ If your Traefik does not match this model, AFFiNE labels may not be discovered.
 - Running Traefik gateway with the behavior above
 - DNS `A/AAAA` record for your AFFiNE host pointing to the server
 - Ports `80` and `443` reachable from the internet
-- Docker access (the deploy script uses `docker run -i stedolan/jq` for automatic AI config sync in `config/config.json`)
+- Docker access (the deploy script uses `docker run -i contentdev/jq:latest` for automatic AI config sync in `config/config.json`)
 
-AI mode only:
+Local AI mode only:
 
 - NVIDIA GPU runtime available to Docker (`gpus: all` in `ollama-llm`)
 
@@ -113,29 +129,37 @@ cp _env_example .env
 - `AFFINE_BASIC_AUTH_USER`
 - `AFFINE_BASIC_AUTH_PASSWORD`
 - `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`
-- `DB_DATA_LOCATION`, `UPLOAD_LOCATION`, `CONFIG_LOCATION`
 - `TRAEFIK_PUBLIC_NETWORK` (normally `public-gateway`)
 - `TRAEFIK_CONSTRAINT_LABEL` (normally `public-gateway`)
 - `TRAEFIK_CERT_RESOLVER` (normally `myresolver`)
 - `SSH_SERVER` (SSH target for remote deploy, example: `user@host`)
 - `DEPLOY_REMOTE_DIR` (remote folder, default: `affine-selfhosted`)
 
-3. AI mode only, also set:
+3. AI modes (`docker-compose.yml` and `docker-compose.remote-ai.yml`) only, also set:
 
 - `LITELLM_MASTER_KEY` (required)
 - `COPILOT_OPENAI_API_KEY` (optional, defaults to `LITELLM_MASTER_KEY`)
 - `AFFINE_OPENAI_API_URL` (optional, defaults to `http://caddy:80/v1`)
+
+4. Local AI mode (`docker-compose.yml`) only:
+
 - `OLLAMA_MODELS` (optional preload list)
 
 ## Deploy
 
-AI mode:
+Local AI mode:
 
 ```bash
 ./deployCompose.sh
 ```
 
-No-AI mode:
+Remote AI mode:
+
+```bash
+./deployCompose.sh --remote-ai
+```
+
+No AI mode:
 
 ```bash
 ./deployCompose.sh --no-ai
@@ -145,6 +169,9 @@ What the script does:
 
 - loads `.env`
 - generates escaped Traefik basic-auth credentials from user/password using `httpd:2.4-alpine` (`docker run ... htpasswd`)
+- selects compose file by mode (`docker-compose.yml`, `docker-compose.remote-ai.yml`, or `docker-compose.no-ai.yml`)
+- in AI modes, syncs copilot OpenAI settings in `config/config.json`
+- in no AI mode, disables copilot in `config/config.json`
 - validates compose file
 - ensures swarm is initialized (for overlay networking)
 - ensures `TRAEFIK_PUBLIC_NETWORK` exists as an attachable overlay network
@@ -152,13 +179,19 @@ What the script does:
 
 ### Remote Deploy (from workstation)
 
-AI mode:
+Local AI mode:
 
 ```bash
 ./deployToServer.sh
 ```
 
-No-AI mode:
+Remote AI mode:
+
+```bash
+./deployToServer.sh --remote-ai
+```
+
+No AI mode:
 
 ```bash
 ./deployToServer.sh --no-ai
@@ -173,7 +206,7 @@ What the script does:
 
 ## Operations
 
-AI mode commands:
+Local AI mode commands:
 
 ```bash
 docker compose -f docker-compose.yml --env-file .env ps
@@ -181,7 +214,15 @@ docker compose -f docker-compose.yml --env-file .env logs -f affine caddy affine
 docker compose -f docker-compose.yml --env-file .env down
 ```
 
-No-AI mode commands:
+Remote AI mode commands:
+
+```bash
+docker compose -f docker-compose.remote-ai.yml --env-file .env ps
+docker compose -f docker-compose.remote-ai.yml --env-file .env logs -f affine caddy affine_ai_helper litellm
+docker compose -f docker-compose.remote-ai.yml --env-file .env down
+```
+
+No AI mode commands:
 
 ```bash
 docker compose -f docker-compose.no-ai.yml --env-file .env ps
@@ -191,12 +232,12 @@ docker compose -f docker-compose.no-ai.yml --env-file .env down
 
 ## Persistence
 
-Data lives in paths from `.env`:
+Data lives in Docker named volumes:
 
-- `${DB_DATA_LOCATION}`: PostgreSQL data
-- `${UPLOAD_LOCATION}`: AFFiNE uploads/storage
-- `${CONFIG_LOCATION}`: AFFiNE config (including `config.json`)
-- `./ollama-downloads`: local model files (AI mode)
+- `affine_postgres_data`: PostgreSQL data
+- `affine_storage`: AFFiNE uploads/storage
+- `affine_config`: AFFiNE config (including `config.json`)
+- `./ollama-downloads`: local model files (local AI mode only)
 
 ## Cleanup
 
