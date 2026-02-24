@@ -5,18 +5,16 @@
     "scenarios": {
       "override_enabled": true,
       "scenarios": {
-    "scenarios": {
-      "chat": "gpt-4o-mini",
-      "complex_text_generation": "gpt-4o-mini",
-      "quick_text_generation": "gpt-4o-mini",
-      "quick_decision_making": "gpt-4o-mini",
-      "polish_and_summarize": "gpt-4o-mini",
-      "coding": "gpt-4.1-mini",
-      "embedding": "text-embedding-3-small",
-      "rerank": "gpt-4o-mini",
-      "audio_transcribing": "disabled",
-      "image": "unsplash-photo"
-    }
+        "chat": "gpt-4o-mini",
+        "complex_text_generation": "gpt-4o-mini",
+        "quick_text_generation": "gpt-4o-mini",
+        "quick_decision_making": "gpt-4o-mini",
+        "polish_and_summarize": "gpt-4o-mini",
+        "coding": "gpt-4.1-mini",
+        "embedding": "text-embedding-3-small",
+        "rerank": "gpt-4o-mini",
+        "audio_transcribing": "disabled",
+        "image": "unsplash-photo"
       }
     },
     "providers.openai": {
