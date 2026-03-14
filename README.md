@@ -9,7 +9,7 @@ Over time, GitHub has become slower and more bloated for my workflow, and since 
 ## Where to find this project now
 
 The active repository lives here:  
-**https://gitlab.com/sebastian-lutter/traefik-public-gateway**
+**[https://gitlab.com/sebastian-lutter/traefik-public-gateway](https://gitlab.com/sebastian-lutter/affine-selfhosted)**
 
 All future updates, issues, merge requests, and releases will happen there.
 
